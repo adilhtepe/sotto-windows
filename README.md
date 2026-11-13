@@ -45,13 +45,13 @@ Windows loads only signed drivers. For a test-signed driver, turn on test signin
 ```bat
 bcdedit /set testsigning on
 ```
-Put `install.bat` and `SottoVBAN.cer` next to the package files, then run as administrator:
+Then, in the downloaded `SottoVBAN-x64` folder, as administrator (in PowerShell type `.\install.bat`):
 ```bat
-install.bat 192.168.2.1 Desktop
+install.bat 192.168.1.10 Desktop
 ```
-It trusts the test certificate, finds `devcon.exe` in the WDK (or next to the script), installs
-the device and points it at `192.168.2.1:6980` with stream name `Desktop`. Pick **Sotto out** as
-the playback device in Windows or in an app.
+It trusts the test certificate, creates the device and installs the driver (no WDK or `devcon`
+needed), then points it at `192.168.1.10:6980` with stream name `Desktop`. Pick **Sotto out** as
+the playback device. `uninstall.bat` removes the device and the driver package.
 
 To distribute to machines without test signing, the driver needs Microsoft attestation signing,
 which requires an EV code-signing certificate.

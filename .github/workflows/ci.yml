@@ -36,12 +36,25 @@ jobs:
         shell: pwsh
         run: |
           msbuild SottoVBAN\Scream.vcxproj /p:Configuration=Win10 /p:Platform=${{ matrix.platform }} /p:SpectreMitigation=false /p:WindowsTargetPlatformVersion=$env:WDKVER /m
+      - name: Package (driver, test certificate, installer)
+        shell: pwsh
+        run: |
+          $p = "pkg\SottoVBAN-${{ matrix.platform }}"
+          New-Item -ItemType Directory -Force $p | Out-Null
+          Copy-Item "SottoVBAN\${{ matrix.platform }}\Win10\Scream\*" $p
+          Copy-Item "SottoVBAN\${{ matrix.platform }}\Win10\SottoVBAN.cer" $p
+          Copy-Item install.bat, install.ps1, uninstall.bat, README.md, LICENSE-MS-PL.txt $p
+          Get-ChildItem $p | Format-Table Name, Length
+      - name: Installer smoke test (compiles the SetupAPI helper, runs the uninstall path)
+        shell: pwsh
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File "pkg\SottoVBAN-${{ matrix.platform }}\install.ps1" -Uninstall
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          # and the install path stops cleanly at the test-signing check on this runner
+          powershell -NoProfile -ExecutionPolicy Bypass -File "pkg\SottoVBAN-${{ matrix.platform }}\install.ps1" -Ip 127.0.0.1
+          if ($LASTEXITCODE -ne 1) { Write-Error "expected the test-signing stop"; exit 1 }
+          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: SottoVBAN-${{ matrix.platform }}
-          path: |
-            SottoVBAN/${{ matrix.platform }}/**/SottoVBAN.sys
-            SottoVBAN/${{ matrix.platform }}/**/SottoVBAN.inf
-            SottoVBAN/${{ matrix.platform }}/**/*.cat
-            SottoVBAN/${{ matrix.platform }}/**/*.cer
-            install.bat
+          path: pkg/SottoVBAN-${{ matrix.platform }}

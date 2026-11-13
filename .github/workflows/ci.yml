@@ -30,6 +30,15 @@ jobs:
           if (-not $ver) { Write-Error "no WDK found"; exit 1 }
           Write-Host "WDK $ver"
           "WDKVER=$ver" >> $env:GITHUB_ENV
+          # Inf2Cat (bin\<ver>\x86) loads "x86\InfVerif.dll" relative to itself; the winget WDK ships it one level up.
+          $x86 = "$kits\bin\$ver\x86"
+          $dll = Get-ChildItem "$kits\bin\$ver" -Recurse -Filter InfVerif.dll -ErrorAction SilentlyContinue |
+                 Where-Object { $_.FullName -match '\\x86\\' } | Select-Object -First 1
+          if ($dll -and -not (Test-Path "$x86\x86\InfVerif.dll")) {
+              New-Item -ItemType Directory -Force "$x86\x86" | Out-Null
+              Copy-Item $dll.FullName "$x86\x86\InfVerif.dll"
+              Write-Host "InfVerif.dll -> $x86\x86"
+          }
       - name: Build (test-signed)
         run: msbuild SottoVBAN\Scream.vcxproj /p:Configuration=Win10 /p:Platform=${{ matrix.platform }} /p:SpectreMitigation=false /p:WindowsTargetPlatformVersion=$env:WDKVER /m
       - uses: actions/upload-artifact@v4

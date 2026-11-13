@@ -62,8 +62,10 @@ plays to any device, e.g. `sotto play -n Mix -d Speakers`. A virtual *microphone
 not part of this driver.
 
 ## Status
-Builds, passes the WDK's INF verification and is test-signed in CI for x64 and ARM64. The packet
-layout matches the SDK's VBAN tests. Not yet installed and run on a real Windows machine.
+Builds, passes the WDK's INF verification and is test-signed in CI for x64 and ARM64. CI installs the
+x64 driver on a Windows Server runner, checks that the device starts and the service runs from the
+driver store, then uninstalls it. The packet layout matches the SDK's VBAN tests. Audio output has
+not been checked on a desktop Windows yet.
 
 ## Thanks
 This is part of **Sotto** (the `sotto` repository links all of its repositories). VBAN is the

@@ -46,6 +46,7 @@ jobs:
           Copy-Item install.bat, install.ps1, uninstall.bat, README.md, LICENSE-MS-PL.txt $p
           Get-ChildItem $p | Format-Table Name, Length
       - name: Install, check the device starts, uninstall (the runner has test signing on)
+        if: matrix.platform == 'x64'   # the runner is x64; the ARM64 driver cannot load on it
         shell: pwsh
         run: |
           $ps = "pkg\SottoVBAN-${{ matrix.platform }}\install.ps1"

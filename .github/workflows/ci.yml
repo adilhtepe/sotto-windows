@@ -17,13 +17,21 @@ jobs:
         shell: pwsh
         run: |
           $kits = "${env:ProgramFiles(x86)}\Windows Kits\10"
-          if (Test-Path "$kits\build\*\WindowsDriver.Common.targets") { Write-Host "WDK present"; exit 0 }
+          if (-not (Test-Path "$kits\build\*\WindowsDriver.Common.targets")) {
           winget install --source winget --exact --id Microsoft.WindowsWDK.10.0.26100 --accept-package-agreements --accept-source-agreements --silent
           $vsix = Get-ChildItem "$kits\Vsix" -Recurse -Filter WDK.vsix | Select-Object -First 1
           $installer = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property productPath | Split-Path
           Start-Process -Wait "$installer\VSIXInstaller.exe" -ArgumentList "/quiet", "/admin", $vsix.FullName
+          }
+          # Build against the newest kit that has both the WDK and the matching SDK headers
+          $ver = Get-ChildItem "$kits\build" -Directory | Where-Object {
+              (Test-Path "$($_.FullName)\WindowsDriver.Common.targets") -and (Test-Path "$kits\Include\$($_.Name)\km")
+          } | Sort-Object { [version]$_.Name } | Select-Object -Last 1 -ExpandProperty Name
+          if (-not $ver) { Write-Error "no WDK found"; exit 1 }
+          Write-Host "WDK $ver"
+          "WDKVER=$ver" >> $env:GITHUB_ENV
       - name: Build (test-signed)
-        run: msbuild SottoVBAN\Scream.vcxproj /p:Configuration=Win10 /p:Platform=${{ matrix.platform }} /p:SpectreMitigation=false /m
+        run: msbuild SottoVBAN\Scream.vcxproj /p:Configuration=Win10 /p:Platform=${{ matrix.platform }} /p:SpectreMitigation=false /p:WindowsTargetPlatformVersion=$env:WDKVER /m
       - uses: actions/upload-artifact@v4
         with:
           name: SottoVBAN-${{ matrix.platform }}

@@ -27,24 +27,31 @@ changes are:
 The IVSHMEM mode inherited from Scream is untouched and still uses Scream's format; Sotto does not
 use it.
 
-## Build
+## Download
+Every push builds the driver on GitHub Actions for x64 and ARM64 and test-signs it. Open the latest
+run under **Actions**, download `SottoVBAN-x64` (or `SottoVBAN-ARM64`) from *Artifacts*. Windows 10
+1709 (build 16299) or later, including Windows 11.
+
+## Build it yourself
 You need Visual Studio 2022 with the **Windows Driver Kit** (WDK 10) installed.
 1. Open `SottoVBAN\Scream.vcxproj`.
-2. Pick the *Release* configuration and the *x64* (or ARM64) platform, then build. The output
-   folder contains `SottoVBAN.sys`, `SottoVBAN.inf` and `SottoVBAN.cat`, test-signed by Visual
-   Studio.
+2. Pick the *Win10* configuration and the *x64* (or ARM64) platform, then build. The package folder
+   (`x64\Win10\Scream`) holds `SottoVBAN.sys`, `SottoVBAN.inf` and `sottovban.cat`; the test
+   certificate is `x64\Win10\SottoVBAN.cer`.
 
 ## Install (test machine)
-Windows loads only signed drivers. For a self-built driver, turn on test signing once and reboot:
+Windows loads only signed drivers. For a test-signed driver, turn on test signing once and reboot
+(on PCs with Secure Boot, turn Secure Boot off in the firmware first):
 ```bat
 bcdedit /set testsigning on
 ```
-Then, as administrator, in the build output folder (`devcon.exe` is in the WDK's `Tools` folder):
+Put `install.bat` and `SottoVBAN.cer` next to the package files, then run as administrator:
 ```bat
 install.bat 192.168.2.1 Desktop
 ```
-This installs the device and points it at `192.168.2.1:6980` with stream name `Desktop`. Pick
-**Sotto out** as the playback device in Windows or in an app.
+It trusts the test certificate, finds `devcon.exe` in the WDK (or next to the script), installs
+the device and points it at `192.168.2.1:6980` with stream name `Desktop`. Pick **Sotto out** as
+the playback device in Windows or in an app.
 
 To distribute to machines without test signing, the driver needs Microsoft attestation signing,
 which requires an EV code-signing certificate.
@@ -55,9 +62,8 @@ plays to any device, e.g. `sotto play -n Mix -d Speakers`. A virtual *microphone
 not part of this driver.
 
 ## Status
-Not built or run yet: Windows drivers cannot be built or loaded on the Linux machine this was
-written on. The packet layout matches the SDK's VBAN tests. First build and install need checking
-on a real Windows machine.
+Builds, passes the WDK's INF verification and is test-signed in CI for x64 and ARM64. The packet
+layout matches the SDK's VBAN tests. Not yet installed and run on a real Windows machine.
 
 ## Thanks
 This is part of **Sotto** (the `sotto` repository links all of its repositories). VBAN is the

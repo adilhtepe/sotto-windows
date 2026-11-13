@@ -3,14 +3,15 @@ Signature="$CHICAGO$"
 Class=MEDIA
 Provider=%SCR%
 ClassGUID={4d36e96c-e325-11ce-bfc1-08002be10318}
-DriverVer = 02/22/2007, 6.0.6000.1
-CatalogFile=scream.cat
+DriverVer = 11/13/2026, 1.0.0.0
+CatalogFile=SottoVBAN.cat
+PnpLockdown=1
 
 [SourceDisksNames]
 222="Sotto VBAN Driver Disk","",222
 
 [SourceDisksFiles]
-scream.sys=222
+SottoVBAN.sys=222
 
 [Manufacturer]
 %MfgName%=MicrosoftDS,NTAMD64,NTx86,NTARM,NTARM64
@@ -28,7 +29,7 @@ scream.sys=222
 %Scream.DeviceDesc%=Scream,*SottoVBAN
 
 [DestinationDirs]
-Scream.CopyList=10,system32\drivers
+Scream.CopyList=13   ; run from the driver store
 
 [Scream.CopyList]
 SottoVBAN.sys
@@ -76,7 +77,7 @@ DisplayName=%Scream.SvcDesc%
 ServiceType=1
 StartType=3
 ErrorControl=1
-ServiceBinary=%10%\system32\drivers\SottoVBAN.sys
+ServiceBinary=%13%\SottoVBAN.sys
 
 [Strings]
 SCR="Tom Kistner"

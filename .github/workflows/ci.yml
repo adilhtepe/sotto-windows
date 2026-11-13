@@ -62,6 +62,20 @@ jobs:
           $d | Format-Table FriendlyName, Status, InstanceId
           if (-not $d -or $d.Status -ne 'OK') { Write-Error "device did not start"; exit 1 }
           Get-CimInstance Win32_SystemDriver -Filter "Name='SottoVBAN'" | Format-Table Name, State, PathName
+          # Audio test: start the Windows audio service, play a sound through Sotto out, count the
+          # VBAN packets on 127.0.0.2:6980 (the installer above pointed the driver there, stream CI2)
+          Set-Service AudioEndpointBuilder -StartupType Manual; Set-Service Audiosrv -StartupType Manual
+          Start-Service AudioEndpointBuilder, Audiosrv
+          Start-Sleep 3
+          Get-PnpDevice -Class AudioEndpoint -ErrorAction SilentlyContinue | Format-Table FriendlyName, Status
+          $job = Start-Job { python $using:PWD\ci\vban_listen.py 6980 12 }
+          Start-Sleep 2
+          $wav = Get-ChildItem C:\Windows\Media\*.wav | Select-Object -First 1
+          Write-Host "playing $($wav.Name)"
+          for ($k = 0; $k -lt 3; $k++) { (New-Object Media.SoundPlayer $wav.FullName).PlaySync() }
+          $out = Receive-Job $job -Wait
+          $out
+          if (-not ($out -match 'packets [1-9]')) { Write-Warning "no VBAN packets seen (no audio engine on this image?)" }
           powershell -NoProfile -ExecutionPolicy Bypass -File $ps -Uninstall
           if ($LASTEXITCODE -ne 0) { exit 1 }
           if (Get-PnpDevice | Where-Object { $_.HardwareID -contains '*SottoVBAN' -and $_.Present }) { Write-Error "device still present"; exit 1 }

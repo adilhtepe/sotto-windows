@@ -45,14 +45,19 @@ jobs:
           Copy-Item "SottoVBAN\${{ matrix.platform }}\Win10\SottoVBAN.cer" $p
           Copy-Item install.bat, install.ps1, uninstall.bat, README.md, LICENSE-MS-PL.txt $p
           Get-ChildItem $p | Format-Table Name, Length
-      - name: Installer smoke test (compiles the SetupAPI helper, runs the uninstall path)
+      - name: Install, check the device starts, uninstall (the runner has test signing on)
         shell: pwsh
         run: |
-          powershell -NoProfile -ExecutionPolicy Bypass -File "pkg\SottoVBAN-${{ matrix.platform }}\install.ps1" -Uninstall
+          $ps = "pkg\SottoVBAN-${{ matrix.platform }}\install.ps1"
+          powershell -NoProfile -ExecutionPolicy Bypass -File $ps -Ip 127.0.0.1 -Stream CI
           if ($LASTEXITCODE -ne 0) { exit 1 }
-          # and the install path stops cleanly at the test-signing check on this runner
-          powershell -NoProfile -ExecutionPolicy Bypass -File "pkg\SottoVBAN-${{ matrix.platform }}\install.ps1" -Ip 127.0.0.1
-          if ($LASTEXITCODE -ne 1) { Write-Error "expected the test-signing stop"; exit 1 }
+          $d = Get-PnpDevice | Where-Object { $_.HardwareID -contains '*SottoVBAN' }
+          $d | Format-Table FriendlyName, Status, InstanceId
+          if (-not $d -or $d.Status -ne 'OK') { Write-Error "device did not start"; exit 1 }
+          Get-CimInstance Win32_SystemDriver -Filter "Name='SottoVBAN'" | Format-Table Name, State, PathName
+          powershell -NoProfile -ExecutionPolicy Bypass -File $ps -Uninstall
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if (Get-PnpDevice | Where-Object { $_.HardwareID -contains '*SottoVBAN' -and $_.Present }) { Write-Error "device still present"; exit 1 }
           exit 0
       - uses: actions/upload-artifact@v4
         with:

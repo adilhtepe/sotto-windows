@@ -119,6 +119,13 @@ if (Test-Path $Cer) {
 }
 
 $pendingReboot = Remove-SottoDevices
+# A driver image stays in memory until every device using it is gone; if it is still loaded,
+# a new device would run the old code. Insist on a reboot first.
+$svc = Get-CimInstance Win32_SystemDriver -Filter "Name='SottoVBAN'" -ErrorAction SilentlyContinue
+if ($pendingReboot -or ($svc -and $svc.State -eq 'Running')) {
+    Write-Host 'An older Sotto VBAN driver is still loaded in memory. Reboot, then run this again.' -ForegroundColor Yellow
+    exit 2
+}
 # The driver reads its options once, when it loads: write them before the device is created
 if ($Ip) {
     New-Item -Path $Opts -Force | Out-Null
@@ -134,6 +141,16 @@ try {
 }
 $dev = Get-SottoDevices | Where-Object { $_.Present } | Select-Object -First 1
 if ($dev) { Write-Host "Device: $($dev.FriendlyName)  [$($dev.Status)]" }
+# Check that the driver Windows loaded is the one in this folder
+$svc = Get-CimInstance Win32_SystemDriver -Filter "Name='SottoVBAN'" -ErrorAction SilentlyContinue
+if ($svc -and $svc.PathName) {
+    $loaded = $svc.PathName -replace '^\\\?\\', ''
+    $mine = (Get-FileHash (Join-Path $Here 'SottoVBAN.sys')).Hash
+    if ((Test-Path $loaded) -and ((Get-FileHash $loaded).Hash -ne $mine)) {
+        Write-Host "Windows is using a different SottoVBAN.sys ($loaded). Reboot and run this again." -ForegroundColor Yellow
+    }
+    Write-Host "Driver: $loaded  [$($svc.State)]"
+}
 if ($pendingReboot) {
     # The old driver instance is still loaded with its old settings until Windows restarts
     Write-Host 'An earlier Sotto device was still in use: reboot once so the new settings take effect.' -ForegroundColor Yellow

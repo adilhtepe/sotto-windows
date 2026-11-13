@@ -53,6 +53,7 @@ jobs:
           # fresh install (options written before the service exists), then a reinstall over it
           powershell -NoProfile -ExecutionPolicy Bypass -File $ps -Ip 127.0.0.1 -Stream CI
           if ($LASTEXITCODE -ne 0) { exit 1 }
+          # reinstall: the idle driver unloads when its device goes, so this must succeed
           powershell -NoProfile -ExecutionPolicy Bypass -File $ps -Ip 127.0.0.2 -Stream CI2
           if ($LASTEXITCODE -ne 0) { exit 1 }
           Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\SottoVBAN\Options | Format-List UnicastIPv4, StreamName

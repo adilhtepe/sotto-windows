@@ -50,8 +50,14 @@ jobs:
         shell: pwsh
         run: |
           $ps = "pkg\SottoVBAN-${{ matrix.platform }}\install.ps1"
+          # fresh install (options written before the service exists), then a reinstall over it
           powershell -NoProfile -ExecutionPolicy Bypass -File $ps -Ip 127.0.0.1 -Stream CI
           if ($LASTEXITCODE -ne 0) { exit 1 }
+          powershell -NoProfile -ExecutionPolicy Bypass -File $ps -Ip 127.0.0.2 -Stream CI2
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\SottoVBAN\Options | Format-List UnicastIPv4, StreamName
+          $n = @(Get-PnpDevice | Where-Object { $_.HardwareID -contains '*SottoVBAN' -and $_.Present }).Count
+          if ($n -ne 1) { Write-Error "expected one device, found $n"; exit 1 }
           $d = Get-PnpDevice | Where-Object { $_.HardwareID -contains '*SottoVBAN' }
           $d | Format-Table FriendlyName, Status, InstanceId
           if (-not $d -or $d.Status -ne 'OK') { Write-Error "device did not start"; exit 1 }

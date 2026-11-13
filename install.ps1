@@ -81,14 +81,18 @@ function Get-SottoDevices {
     Get-PnpDevice -ErrorAction SilentlyContinue | Where-Object { $_.HardwareID -contains $HwId }
 }
 function Remove-SottoDevices {
+    # Returns $true when Windows needs a reboot to finish removing a device
+    $reboot = $false
     foreach ($d in @(Get-SottoDevices)) {
         Write-Host "Removing $($d.InstanceId)"
-        & pnputil /remove-device "$($d.InstanceId)" | Out-Null
+        $out = (& pnputil /remove-device "$($d.InstanceId)") -join "`n"
+        if ($out -match 'reboot|restart') { $reboot = $true }
     }
+    return $reboot
 }
 
 if ($Uninstall) {
-    Remove-SottoDevices
+    if (Remove-SottoDevices) { Write-Host 'Windows asks for a reboot to finish removing the device.' -ForegroundColor Yellow }
     # Remove the driver package from the driver store too
     $pkgs = Get-WindowsDriver -Online -ErrorAction SilentlyContinue | Where-Object { $_.OriginalFileName -like '*SottoVBAN.inf' }
     foreach ($p in $pkgs) { & pnputil /delete-driver $p.Driver /uninstall /force | Out-Null; Write-Host "Removed $($p.Driver)" }
@@ -114,27 +118,26 @@ if (Test-Path $Cer) {
     & certutil -f -addstore TrustedPublisher $Cer | Out-Null
 }
 
-Remove-SottoDevices
+$pendingReboot = Remove-SottoDevices
+# The driver reads its options once, when it loads: write them before the device is created
+if ($Ip) {
+    New-Item -Path $Opts -Force | Out-Null
+    Set-ItemProperty -Path $Opts -Name UnicastIPv4 -Value $Ip
+    if ($Stream) { Set-ItemProperty -Path $Opts -Name StreamName -Value $Stream }
+    if ($Port -gt 0) { New-ItemProperty -Path $Opts -Name UnicastPort -Value $Port -PropertyType DWord -Force | Out-Null }
+}
 try {
     $reboot = [SottoRootDevice]::Install($Inf, $HwId)
 } catch {
     Write-Host $_.Exception.Message -ForegroundColor Red
     exit 1
 }
-$dev = Get-SottoDevices | Select-Object -First 1
-if ($Ip) {
-    # The driver reads these when it starts; set them, then restart the device
-    New-Item -Path $Opts -Force | Out-Null
-    Set-ItemProperty -Path $Opts -Name UnicastIPv4 -Value $Ip
-    if ($Stream) { Set-ItemProperty -Path $Opts -Name StreamName -Value $Stream }
-    if ($Port -gt 0) { New-ItemProperty -Path $Opts -Name UnicastPort -Value $Port -PropertyType DWord -Force | Out-Null }
-    if ($dev) {
-        Disable-PnpDevice -InstanceId $dev.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
-        Enable-PnpDevice -InstanceId $dev.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
-        $dev = Get-SottoDevices | Select-Object -First 1
-    }
-}
+$dev = Get-SottoDevices | Where-Object { $_.Present } | Select-Object -First 1
 if ($dev) { Write-Host "Device: $($dev.FriendlyName)  [$($dev.Status)]" }
+if ($pendingReboot) {
+    # The old driver instance is still loaded with its old settings until Windows restarts
+    Write-Host 'An earlier Sotto device was still in use: reboot once so the new settings take effect.' -ForegroundColor Yellow
+}
 if ($reboot) { Write-Host 'Windows asks for a reboot to finish.' -ForegroundColor Yellow }
 $dest = if ($Ip) { $Ip } else { '127.0.0.1' }
 $p = if ($Port -gt 0) { $Port } else { 6980 }

@@ -1,0 +1,35 @@
+name: ci
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  driver:
+    name: driver (${{ matrix.platform }})
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64, ARM64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - name: Windows Driver Kit
+        shell: pwsh
+        run: |
+          $kits = "${env:ProgramFiles(x86)}\Windows Kits\10"
+          if (Test-Path "$kits\build\*\WindowsDriver.Common.targets") { Write-Host "WDK present"; exit 0 }
+          winget install --source winget --exact --id Microsoft.WindowsWDK.10.0.26100 --accept-package-agreements --accept-source-agreements --silent
+          $vsix = Get-ChildItem "$kits\Vsix" -Recurse -Filter WDK.vsix | Select-Object -First 1
+          $installer = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property productPath | Split-Path
+          Start-Process -Wait "$installer\VSIXInstaller.exe" -ArgumentList "/quiet", "/admin", $vsix.FullName
+      - name: Build (test-signed)
+        run: msbuild SottoVBAN\Scream.vcxproj /p:Configuration=Win10 /p:Platform=${{ matrix.platform }} /p:SpectreMitigation=false /m
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SottoVBAN-${{ matrix.platform }}
+          path: |
+            SottoVBAN/${{ matrix.platform }}/**/SottoVBAN.sys
+            SottoVBAN/${{ matrix.platform }}/**/SottoVBAN.inf
+            SottoVBAN/${{ matrix.platform }}/**/*.cat
+            SottoVBAN/${{ matrix.platform }}/**/*.cer
+            install.bat

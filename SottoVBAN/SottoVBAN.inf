@@ -14,18 +14,19 @@ PnpLockdown=1
 SottoVBAN.sys=222
 
 [Manufacturer]
-%MfgName%=MicrosoftDS,NTAMD64,NTx86,NTARM,NTARM64
+; Windows 10 1709 (build 16299) or later: the driver runs from the driver store (DIRID 13)
+%MfgName%=MicrosoftDS,NTAMD64.10.0...16299,NTx86.10.0...16299,NTARM.10.0...16299,NTARM64.10.0...16299
 
-[MicrosoftDS.NTAMD64]
+[MicrosoftDS.NTAMD64.10.0...16299]
 %Scream.DeviceDesc%=Scream,*SottoVBAN
 
-[MicrosoftDS.NTx86]
+[MicrosoftDS.NTx86.10.0...16299]
 %Scream.DeviceDesc%=Scream,*SottoVBAN
 
-[MicrosoftDS.NTARM]
+[MicrosoftDS.NTARM.10.0...16299]
 %Scream.DeviceDesc%=Scream,*SottoVBAN
 
-[MicrosoftDS.NTARM64]
+[MicrosoftDS.NTARM64.10.0...16299]
 %Scream.DeviceDesc%=Scream,*SottoVBAN
 
 [DestinationDirs]

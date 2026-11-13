@@ -30,17 +30,26 @@ jobs:
           if (-not $ver) { Write-Error "no WDK found"; exit 1 }
           Write-Host "WDK $ver"
           "WDKVER=$ver" >> $env:GITHUB_ENV
-          # Inf2Cat (bin\<ver>\x86) loads "x86\InfVerif.dll" relative to itself; the winget WDK ships it one level up.
+          # Inf2Cat (bin\<ver>\x86) loads "x86\InfVerif.dll" relative to itself; some WDK installs lack it there.
           $x86 = "$kits\bin\$ver\x86"
-          $dll = Get-ChildItem "$kits\bin\$ver" -Recurse -Filter InfVerif.dll -ErrorAction SilentlyContinue |
-                 Where-Object { $_.FullName -match '\\x86\\' } | Select-Object -First 1
-          if ($dll -and -not (Test-Path "$x86\x86\InfVerif.dll")) {
+          $all = Get-ChildItem $kits -Recurse -Filter InfVerif.dll -ErrorAction SilentlyContinue
+          $all | ForEach-Object { Write-Host "found $($_.FullName)" }
+          $dll = ($all | Where-Object { $_.FullName -match '\\x86\\' } | Select-Object -First 1)
+          if (-not $dll) { $dll = $all | Select-Object -First 1 }
+          if ($dll) {
               New-Item -ItemType Directory -Force "$x86\x86" | Out-Null
-              Copy-Item $dll.FullName "$x86\x86\InfVerif.dll"
+              Copy-Item -Force $dll.FullName "$x86\x86\InfVerif.dll"
               Write-Host "InfVerif.dll -> $x86\x86"
+          } else {
+              # No INF verifier on this image: build and sign the driver, skip the catalog.
+              "INF2CAT=/p:EnableInf2cat=false" >> $env:GITHUB_ENV
+              "No InfVerif.dll in the WDK on this runner: built without the .cat catalog." >> $env:GITHUB_STEP_SUMMARY
           }
       - name: Build (test-signed)
-        run: msbuild SottoVBAN\Scream.vcxproj /p:Configuration=Win10 /p:Platform=${{ matrix.platform }} /p:SpectreMitigation=false /p:WindowsTargetPlatformVersion=$env:WDKVER /m
+        shell: pwsh
+        run: |
+          $extra = @(); if ($env:INF2CAT) { $extra += $env:INF2CAT }
+          msbuild SottoVBAN\Scream.vcxproj /p:Configuration=Win10 /p:Platform=${{ matrix.platform }} /p:SpectreMitigation=false /p:WindowsTargetPlatformVersion=$env:WDKVER @extra /m
       - uses: actions/upload-artifact@v4
         with:
           name: SottoVBAN-${{ matrix.platform }}

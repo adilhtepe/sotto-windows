@@ -75,7 +75,24 @@ jobs:
           for ($k = 0; $k -lt 3; $k++) { (New-Object Media.SoundPlayer $wav.FullName).PlaySync() }
           $out = Receive-Job $job -Wait
           $out
-          if (-not ($out -match 'packets [1-9]')) { Write-Warning "no VBAN packets seen (no audio engine on this image?)" }
+          if (-not ($out -match 'packets [1-9]')) { Write-Error "no VBAN packets"; exit 1 }
+          # Restart the device while it plays (this crashed a desktop before the per-stream work
+          # item fix), then check that audio still flows
+          $play = Start-Job { param($f) for ($k = 0; $k -lt 6; $k++) { (New-Object Media.SoundPlayer $f).PlaySync() } } -ArgumentList $wav.FullName
+          Start-Sleep 2
+          $d = Get-PnpDevice | Where-Object { $_.HardwareID -contains '*SottoVBAN' -and $_.Present }
+          for ($k = 0; $k -lt 3; $k++) {
+              & pnputil /restart-device "$($d.InstanceId)"
+              Start-Sleep 2
+          }
+          Stop-Job $play -ErrorAction SilentlyContinue
+          Start-Sleep 2
+          $job = Start-Job { python $using:PWD\ci\vban_listen.py 6980 10 }
+          Start-Sleep 2
+          for ($k = 0; $k -lt 2; $k++) { (New-Object Media.SoundPlayer $wav.FullName).PlaySync() }
+          $out = Receive-Job $job -Wait
+          "after restarts: $out"
+          if (-not ($out -match 'packets [1-9]')) { Write-Error "no VBAN packets after restarting the device"; exit 1 }
           powershell -NoProfile -ExecutionPolicy Bypass -File $ps -Uninstall
           if ($LASTEXITCODE -ne 0) { exit 1 }
           if (Get-PnpDevice | Where-Object { $_.HardwareID -contains '*SottoVBAN' -and $_.Present }) { Write-Error "device still present"; exit 1 }

@@ -58,7 +58,7 @@ protected:
     PMDL                        m_pMdl;
     
     static PDEVICE_OBJECT       m_pDeviceObject;
-    static PSAVEWORKER_PARAM    m_pWorkItem;
+    PSAVEWORKER_PARAM           m_pWorkItem;         // per stream (was static and shared: freed under a live stream)
 
     BOOL                        m_fWriteDisabled;
     

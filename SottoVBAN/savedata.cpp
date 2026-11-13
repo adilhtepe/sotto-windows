@@ -45,7 +45,7 @@ NTSTATUS WskSampleSyncIrpCompletionRoutine(__in PDEVICE_OBJECT Reserved, __in PI
 //=============================================================================
 
 //=============================================================================
-CSaveData::CSaveData() : m_pBuffer(NULL), m_ulOffset(0), m_ulSendOffset(0), m_fWriteDisabled(FALSE), m_socket(NULL) {
+CSaveData::CSaveData() : m_pBuffer(NULL), m_ulOffset(0), m_ulSendOffset(0), m_fWriteDisabled(FALSE), m_socket(NULL), m_pWorkItem(NULL), m_ulChunkSize(0), m_ulBufferSize(0) {
     PAGED_CODE();
 
     DPF_ENTER(("[CSaveData::CSaveData]"));
@@ -80,10 +80,16 @@ CSaveData::~CSaveData() {
     DPF_ENTER(("[CSaveData::~CSaveData]"));
 
     if (!g_UseIVSHMEM) {
-        // frees the work item
-        if (m_pWorkItem->WorkItem != NULL) {
-            IoFreeWorkItem(m_pWorkItem->WorkItem);
-            m_pWorkItem->WorkItem = NULL;
+        // Wait for a send still in flight, then free this stream's own work item. (Upstream Scream
+        // kept one static work item for all streams and freed it here, so a stream that was still
+        // playing queued a NULL work item at DISPATCH_LEVEL: bugcheck 0xA.)
+        if (m_pWorkItem) {
+            KeWaitForSingleObject(&(m_pWorkItem->EventDone), Executive, KernelMode, FALSE, NULL);
+            if (m_pWorkItem->WorkItem != NULL) {
+                IoFreeWorkItem(m_pWorkItem->WorkItem);
+            }
+            ExFreePoolWithTag(m_pWorkItem, MSVAD_POOLTAG);
+            m_pWorkItem = NULL;
         }
 
         // close socket
@@ -117,10 +123,7 @@ void CSaveData::DestroyWorkItems(void) {
     
     DPF_ENTER(("[CSaveData::DestroyWorkItems]"));
 
-    if (m_pWorkItem) {
-        ExFreePoolWithTag(m_pWorkItem, MSVAD_POOLTAG);
-        m_pWorkItem = NULL;
-    }
+    // Work items are per stream now and freed in ~CSaveData.
 
 } // DestroyWorkItems
 
@@ -451,7 +454,9 @@ void CSaveData::WaitAllWorkItems(void) {
     DPF_ENTER(("[CSaveData::WaitAllWorkItems]"));
 
     DPF(D_VERBOSE, ("[Waiting for WorkItem]"));
-    KeWaitForSingleObject(&(m_pWorkItem->EventDone), Executive, KernelMode, FALSE, NULL);
+    if (m_pWorkItem) {
+        KeWaitForSingleObject(&(m_pWorkItem->EventDone), Executive, KernelMode, FALSE, NULL);
+    }
     
 } // WaitAllWorkItems
 
@@ -467,6 +472,11 @@ void CSaveData::WriteData(IN PBYTE pBuffer, IN ULONG ulByteCount) {
     ULONG w;
     
     if (m_fWriteDisabled) {
+        return;
+    }
+
+    // Nothing to write into or nothing to send with (initialization failed)
+    if (m_pBuffer == NULL || m_pWorkItem == NULL || m_pWorkItem->WorkItem == NULL || m_ulChunkSize == 0) {
         return;
     }
 

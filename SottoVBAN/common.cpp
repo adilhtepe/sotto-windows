@@ -19,7 +19,6 @@ Abstract:
 //-----------------------------------------------------------------------------
 // Externals
 //-----------------------------------------------------------------------------
-PSAVEWORKER_PARAM CSaveData::m_pWorkItem = NULL;
 PDEVICE_OBJECT    CSaveData::m_pDeviceObject = NULL;
 
 PIVSHMEM_SAVEWORKER_PARAM    CIVSHMEMSaveData::m_pWorkItem = NULL;

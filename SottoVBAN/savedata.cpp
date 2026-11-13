@@ -179,9 +179,12 @@ NTSTATUS CSaveData::Initialize(DWORD nSamplesPerSec, WORD wBitsPerSample, WORD n
         DPF(D_TERSE, ("[VBAN: unsupported format %lu Hz %u bits %u ch]", nSamplesPerSec, wBitsPerSample, nChannels));
         return STATUS_INVALID_PARAMETER;
     }
-    frames = VBAN_DATA_MAX / frameBytes;
+    frames = VBAN_DATA_MAX / frameBytes;     // the most that fits in one packet
     if (frames > VBAN_SAMPLES_MAX) {
         frames = VBAN_SAMPLES_MAX;
+    }
+    if (g_FramesPerPacket >= 16 && frames > g_FramesPerPacket) {
+        frames = g_FramesPerPacket;          // the configured packet size (default 64)
     }
     m_ulPayload    = frames * frameBytes;
     m_ulChunkSize  = VBAN_HEADER_SIZE + m_ulPayload;

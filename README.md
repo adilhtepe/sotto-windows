@@ -53,6 +53,9 @@ It trusts the test certificate, creates the device and installs the driver (no W
 needed), then points it at `192.168.1.10:6980` with stream name `Desktop`. Pick **Sotto out** as
 the playback device. `uninstall.bat` removes the device and the driver package.
 
+A fourth argument sets the packet size in frames (16..256, default 64 = 1.3 ms at 48 kHz). Smaller
+packets lower the latency and raise the packet rate: `install.bat 192.168.2.1 Desktop 6980 32`.
+
 To distribute to machines without test signing, the driver needs Microsoft attestation signing,
 which requires an EV code-signing certificate.
 

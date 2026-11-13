@@ -77,6 +77,7 @@ jobs:
           $out = Receive-Job $job -Wait
           $out
           if (-not ($out -match 'packets [1-9]')) { Write-Error "no VBAN packets"; exit 1 }
+          if (-not ($out -match 'frames 64 ')) { Write-Error "expected 64 frames per packet (the driver default)"; exit 1 }
           # Restart the device while it plays (this crashed a desktop before the per-stream work
           # item fix), then check that audio still flows
           $play = Start-Job { param($f) for ($k = 0; $k -lt 6; $k++) { (New-Object Media.SoundPlayer $f).PlaySync() } } -ArgumentList $wav.FullName

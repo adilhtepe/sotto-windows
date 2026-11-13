@@ -139,5 +139,6 @@ extern DWORD g_DSCP;
 extern DWORD g_TTL;
 extern DWORD g_ScreamVersion;
 extern DWORD g_silenceThreshold;
+extern DWORD g_FramesPerPacket;
 
 #endif

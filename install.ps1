@@ -1,12 +1,13 @@
 # Installs the Sotto VBAN virtual sound card without the WDK's devcon.exe.
 # Run as administrator from the folder holding SottoVBAN.inf, SottoVBAN.sys, sottovban.cat and
 # SottoVBAN.cer (install.bat does this for you):
-#   powershell -ExecutionPolicy Bypass -File install.ps1 [-Ip 192.168.1.10] [-Stream Desktop] [-Port 6980]
+#   powershell -ExecutionPolicy Bypass -File install.ps1 [-Ip 192.168.1.10] [-Stream Desktop] [-Port 6980] [-Frames 64]
 #   powershell -ExecutionPolicy Bypass -File install.ps1 -Uninstall
 param(
     [string]$Ip,
     [string]$Stream,
     [int]$Port = 0,
+    [int]$Frames = 0,          # frames per packet, 16..256 (driver default 64 = 1.3 ms at 48 kHz)
     [switch]$Uninstall
 )
 $ErrorActionPreference = 'Stop'
@@ -127,11 +128,12 @@ if ($pendingReboot -or ($svc -and $svc.State -eq 'Running')) {
     exit 2
 }
 # The driver reads its options once, when it loads: write them before the device is created
-if ($Ip) {
+if ($Ip -or $Stream -or $Port -gt 0 -or $Frames -gt 0) {
     New-Item -Path $Opts -Force | Out-Null
-    Set-ItemProperty -Path $Opts -Name UnicastIPv4 -Value $Ip
+    if ($Ip) { Set-ItemProperty -Path $Opts -Name UnicastIPv4 -Value $Ip }
     if ($Stream) { Set-ItemProperty -Path $Opts -Name StreamName -Value $Stream }
     if ($Port -gt 0) { New-ItemProperty -Path $Opts -Name UnicastPort -Value $Port -PropertyType DWord -Force | Out-Null }
+    if ($Frames -gt 0) { New-ItemProperty -Path $Opts -Name FramesPerPacket -Value $Frames -PropertyType DWord -Force | Out-Null }
 }
 try {
     $reboot = [SottoRootDevice]::Install($Inf, $HwId)

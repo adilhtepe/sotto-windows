@@ -39,6 +39,7 @@ DWORD g_UnicastPort;
 //0 = false, otherwhise it's value is the size in MiB of the IVSHMEM we want to use
 UINT8 g_UseIVSHMEM;
 DWORD g_silenceThreshold;
+DWORD g_FramesPerPacket;   // VBAN frames per packet (FramesPerPacket in the Options key), 16..256, default 64
 
 DWORD g_DSCP;
 DWORD g_TTL;
@@ -94,6 +95,7 @@ Returns:
 	  DWORD               TTL = 0;
 	  DWORD               ScreamVersion = 0;
     DWORD               silenceThreshold = 0;
+    DWORD               framesPerPacket = 0;
 
     UNICODE_STRING      streamName;
     RtlZeroMemory(&streamName, sizeof(UNICODE_STRING));
@@ -111,6 +113,7 @@ Returns:
 		    { NULL,   RTL_QUERY_REGISTRY_DIRECT, L"Version", &ScreamVersion, REG_NONE,  NULL, 0 },
         { NULL,   RTL_QUERY_REGISTRY_DIRECT, L"SilenceThreshold", &silenceThreshold, REG_NONE,  NULL, 0 },
         { NULL,   RTL_QUERY_REGISTRY_DIRECT, L"StreamName", &streamName, REG_NONE,  NULL, 0 },
+        { NULL,   RTL_QUERY_REGISTRY_DIRECT, L"FramesPerPacket", &framesPerPacket, REG_NONE,  NULL, 0 },
         { NULL,   0,                         NULL,           NULL,         0,         NULL, 0 }
     };
 
@@ -155,6 +158,9 @@ Returns:
     else {
         g_silenceThreshold = 0;
     }
+
+    // Smaller packets mean less latency (64 frames = 1.3 ms at 48 kHz) and more packets per second
+    g_FramesPerPacket = (framesPerPacket >= 16 && framesPerPacket <= 256) ? framesPerPacket : 64;
 
     if (unicastPort > 0) {
         g_UnicastPort = unicastPort;

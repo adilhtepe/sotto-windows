@@ -3,7 +3,7 @@ Signature="$CHICAGO$"
 Class=MEDIA
 Provider=%SCR%
 ClassGUID={4d36e96c-e325-11ce-bfc1-08002be10318}
-DriverVer = 11/13/2026, 1.0.0.0
+DriverVer = 11/13/2026, 1.0.1.0
 CatalogFile=SottoVBAN.cat
 PnpLockdown=1
 
@@ -81,13 +81,13 @@ ErrorControl=1
 ServiceBinary=%13%\SottoVBAN.sys
 
 [Strings]
-SCR="Tom Kistner"
-MfgName="Tom Kistner"
+SCR="Sotto"
+MfgName="Sotto"
 
 Scream.Name="Sotto VBAN"
 Scream.NameGuid="{6C1E9B2D-3F4A-4E7B-9C21-5A8D0E7F4B63}"
-Scream.DeviceDesc="Sotto VBAN (WDM)"
-Scream.SvcDesc="Sotto VBAN (WDM)"
+Scream.DeviceDesc="Sotto Out"
+Scream.SvcDesc="Sotto VBAN audio driver"
 
 Scream.Wave.szPname="Sotto out"
 Scream.Topo.szPname="Sotto Topology"
